@@ -42,8 +42,40 @@ interface newTask extends Task {
 }
 
 const App = () => {
-  const [taskList, setTaskList] = useState<Task[]>(testData);
-  const [list, handlers] = useListState(taskList);
+  const [list, handlers] = useListState<Task>([
+    {
+      id: "1",
+      title: "Task 1",
+      description: "Description 1",
+      note: "Note 1",
+    },
+    {
+      id: "2",
+      title: "Task 2",
+      description: "Description 2",
+      note: "Note 2",
+      subtasks: [
+        {
+          id: "2.1",
+          title: "Subtask 2.1",
+          description: "Description 2.1",
+          note: "Note 2.1",
+        },
+        {
+          id: "2.2",
+          title: "Subtask 2.2",
+          description: "Description 2.2",
+          note: "Note 2.2",
+        },
+      ],
+    },
+    {
+      id: "3",
+      title: "Task 3",
+      description: "Description 3",
+      note: "Note 3",
+    },
+  ]);
 
   const newTaskForm = useForm<newTask>({
     initialValues: {
@@ -98,25 +130,25 @@ const App = () => {
   const renderTask = (task: Task, index: number) => {
     const subtask = task.subtasks?.map((subtask, index) => {
       return (
-        <tr key={subtask.id}>
+        <tr key={subtask.id} style={{ backgroundColor: "#2C2E33" }}>
           <td>
             <ActionIcon>
               <IconGripVertical size="1.05rem" stroke={1.5} />
             </ActionIcon>
           </td>
           <td>
-            <Text weight={500} align={"center"}>
+            <Text weight={500} align={"center"} fz={'.75rem'}>
               {subtask.id}
             </Text>
           </td>
-          <td>
-            <Text weight={500}>{subtask.title}</Text>
+          <td> 
+            <Text weight={500} fz={'.75rem'}>{subtask.title}</Text>
           </td>
           <td>
-            <Text weight={500}>{subtask.description}</Text>
+            <Text weight={500} fz={'.75rem'}>{subtask.description}</Text>
           </td>
           <td>
-            <Text weight={500}>{subtask.note}</Text>
+            <Text weight={500} fz={'.75rem'}>{subtask.note}</Text>
           </td>
           <td>
             <Flex gap="md">
@@ -137,22 +169,22 @@ const App = () => {
         <tr key={task.id}>
           <td>
             <ActionIcon>
-              <IconGripVertical size="1.05rem" stroke={1.5} />
+              <IconGripVertical size="1.5rem" stroke={1.5} />
             </ActionIcon>
           </td>
           <td>
-            <Text weight={900} align={"center"}>
+            <Text weight={900} align={"center"} fz={'.85rem'}>
               {task.id}
             </Text>
           </td>
           <td>
-            <Text weight={900}>{task.title}</Text>
+            <Text weight={900} fz={'.85rem'}>{task.title}</Text>
           </td>
           <td>
-            <Text weight={900}>{task.description}</Text>
+            <Text weight={900} fz={'.85rem'}>{task.description}</Text>
           </td>
           <td>
-            <Text weight={900}>{task.note}</Text>
+            <Text weight={900} fz={'.85rem'}>{task.note}</Text>
           </td>
           <td>
             <Flex gap="md">
@@ -292,10 +324,10 @@ const App = () => {
               <tr>
                 <th style={{ width: "1rem" }}></th>
                 <th style={{ width: "2rem", textAlign: "center" }}>หมายเลข</th>
-                <th>หัวข้อ</th>
+                <th style={{ textAlign: "start" }}>หัวข้อ</th>
                 <th>รายละเอียด</th>
-                <th>หมายเหตุ</th>
-                <th>จัดการ</th>
+                <th style={{ width: "9rem" }}>หมายเหตุ</th>
+                <th style={{ width: "5rem", textAlign: "center" }}>จัดการ</th>
               </tr>
             </thead>
 
