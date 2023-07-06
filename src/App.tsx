@@ -22,62 +22,131 @@ import {
   IconGripVertical,
   IconTrashXFilled,
 } from "@tabler/icons-react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useListState } from "@mantine/hooks";
-import testData from "./assets/testData.json";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import {
+  restrictToVerticalAxis,
+  restrictToWindowEdges,
+} from "@dnd-kit/modifiers";
+import Rows from "./components/Rows";
+import { makeFlattenTasks, makeTaskData } from "./helper";
+import { Task, TaskData } from "./model";
 
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  note: string;
-  subtasks?: Task[];
-}
-
-type TaskType = "task" | "subtask";
-
-interface newTask extends Task {
-  type: TaskType;
-}
+const TestData: TaskData[] = [
+  {
+    id: "1",
+    title: "Task 1",
+    description: "Description 1",
+    note: "Note 1",
+    type: "task",
+  },
+  {
+    id: "2",
+    title: "Task 2",
+    description: "Description 2",
+    note: "Note 2",
+    type: "task",
+    subtasks: [
+      {
+        id: "2.1",
+        title: "Subtask 2.1",
+        description: "Description 2.1",
+        note: "Note 2.1",
+        type: "subtask",
+      },
+      {
+        id: "2.2",
+        title: "Subtask 2.2",
+        description: "Description 2.2",
+        note: "Note 2.2",
+        type: "subtask",
+      },
+    ],
+  },
+  {
+    id: "3",
+    title: "Task 3",
+    description: "Description 3",
+    note: "Note 3",
+    type: "task",
+  },
+];
 
 const App = () => {
-  const [list, handlers] = useListState<Task>([
-    {
-      id: "1",
-      title: "Task 1",
-      description: "Description 1",
-      note: "Note 1",
-    },
-    {
-      id: "2",
-      title: "Task 2",
-      description: "Description 2",
-      note: "Note 2",
-      subtasks: [
-        {
-          id: "2.1",
-          title: "Subtask 2.1",
-          description: "Description 2.1",
-          note: "Note 2.1",
-        },
-        {
-          id: "2.2",
-          title: "Subtask 2.2",
-          description: "Description 2.2",
-          note: "Note 2.2",
-        },
-      ],
-    },
-    {
-      id: "3",
-      title: "Task 3",
-      description: "Description 3",
-      note: "Note 3",
-    },
-  ]);
+  const [list, handlers] = useListState<Task>([]);
+  const [isDroped, setIsDroped] = useState(false);
 
-  const newTaskForm = useForm<newTask>({
+  let tasksData = makeTaskData(list);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  useEffect(() => {
+    handlers.setState(makeFlattenTasks(TestData));
+  }, []);
+
+  useEffect(() => {
+    if (isDroped) {
+      tasksData = makeTaskData(list);
+      tasksData.map((task, index) => {
+        task.id = `${index + 1}`;
+        if (task.subtasks) {
+          task.subtasks.map((subtask, subtaskIndex) => {
+            subtask.id = `${index + 1}.${subtaskIndex + 1}`;
+          });
+        }
+      });
+      const newTasks = makeFlattenTasks(tasksData);
+      handlers.setState(newTasks);
+      setIsDroped(false);
+    }
+  }, [list]);
+
+  const handleDragEnd = (event: any) => {
+    const { active, over } = event;
+
+    if (active.id !== over.id) {
+      const oldIndex = list.findIndex((item) => item.id === active.id);
+      const newIndex = list.findIndex((item) => item.id === over.id);
+      if (
+        (list[oldIndex].type === "subtask" && newIndex === 0) ||
+        (list[newIndex].type === "subtask" && oldIndex === 0) ||
+        (list[oldIndex].type === "subtask" && newIndex === 0)
+      ) {
+        return;
+      }
+
+      const tempList = [...list];
+      const [removed] = tempList.splice(oldIndex, 1);
+      tempList.splice(newIndex, 0, removed);
+
+      // check if first task is subtask
+      if (tempList[0].type === "subtask") return;
+
+      setIsDroped(true);
+      handlers.reorder({ from: oldIndex, to: newIndex });
+    }
+  };
+
+  const TaskForm = useForm<Task>({
     initialValues: {
       id: "",
       title: "",
@@ -98,108 +167,51 @@ const App = () => {
     },
   });
 
-  const addTask = (newTask: newTask): void => {
+  const addTask = (Task: Task): void => {
     let newID = "";
-    if (newTask.type === "task") {
-      // If list is empty or newTask.type is "task", add as a top-level task
-      newID = `${parseInt(list[list.length - 1].id) + 1}`;
+    if (Task.type === "task") {
+      if (list.length === 0) {
+        newID = "1";
+        handlers.append({
+          id: newID,
+          title: Task.title,
+          description: Task.description,
+          note: Task.note,
+          type: "task",
+        });
+        return;
+      }
+      const beforeID = list[list.length - 1].id.split(".");
+      newID = `${parseInt(beforeID[0]) + 1}`;
       handlers.append({
         id: newID,
-        title: newTask.title,
-        description: newTask.description,
-        note: newTask.note,
+        title: Task.title,
+        description: Task.description,
+        note: Task.note,
+        type: "task",
       });
     } else {
-      // If newTask.type is "subtask", add as a subtask of the last task
-      // Otherwise, add as a subtask to the last task in the list
-      newID = `${list.length}.${
-        (list[list.length - 1].subtasks?.length ?? 0) + 1
-      }`;
-      handlers.setItemProp(list.length - 1, "subtasks", [
-        ...(list[list.length - 1].subtasks ?? []),
-        {
-          id: newID,
-          title: newTask.title,
-          description: newTask.description,
-          note: newTask.note,
-        },
-      ]);
+      const beforeID = list[list.length - 1].id.split(".");
+      // if is first subtask
+      if (beforeID.length === 1) {
+        handlers.append({
+          id: `${beforeID[0]}.1`,
+          title: Task.title,
+          description: Task.description,
+          note: Task.note,
+          type: "subtask",
+        });
+        return;
+      }
+      newID = `${beforeID[0]}.${parseInt(beforeID[1]) + 1}`;
+      handlers.append({
+        id: newID,
+        title: Task.title,
+        description: Task.description,
+        note: Task.note,
+        type: "subtask",
+      });
     }
-  };
-
-  const renderTask = (task: Task, index: number) => {
-    const subtask = task.subtasks?.map((subtask, index) => {
-      return (
-        <tr key={subtask.id} style={{ backgroundColor: "#2C2E33" }}>
-          <td>
-            <ActionIcon>
-              <IconGripVertical size="1.05rem" stroke={1.5} />
-            </ActionIcon>
-          </td>
-          <td>
-            <Text weight={500} align={"center"} fz={'.75rem'}>
-              {subtask.id}
-            </Text>
-          </td>
-          <td> 
-            <Text weight={500} fz={'.75rem'}>{subtask.title}</Text>
-          </td>
-          <td>
-            <Text weight={500} fz={'.75rem'}>{subtask.description}</Text>
-          </td>
-          <td>
-            <Text weight={500} fz={'.75rem'}>{subtask.note}</Text>
-          </td>
-          <td>
-            <Flex gap="md">
-              <ActionIcon variant="transparent" color="green.4">
-                <IconEdit />
-              </ActionIcon>
-              <ActionIcon variant="transparent" color="red.4">
-                <IconTrashXFilled />
-              </ActionIcon>
-            </Flex>
-          </td>
-        </tr>
-      );
-    });
-
-    return (
-      <>
-        <tr key={task.id}>
-          <td>
-            <ActionIcon>
-              <IconGripVertical size="1.5rem" stroke={1.5} />
-            </ActionIcon>
-          </td>
-          <td>
-            <Text weight={900} align={"center"} fz={'.85rem'}>
-              {task.id}
-            </Text>
-          </td>
-          <td>
-            <Text weight={900} fz={'.85rem'}>{task.title}</Text>
-          </td>
-          <td>
-            <Text weight={900} fz={'.85rem'}>{task.description}</Text>
-          </td>
-          <td>
-            <Text weight={900} fz={'.85rem'}>{task.note}</Text>
-          </td>
-          <td>
-            <Flex gap="md">
-              <ActionIcon variant="transparent" color="green.6">
-                <IconEdit />
-              </ActionIcon>
-              <ActionIcon variant="transparent" color="red.6">
-                <IconTrashXFilled />
-              </ActionIcon>
-            </Flex>
-          </td>
-        </tr>
-        {subtask}
-      </>
-    );
   };
 
   return (
@@ -257,23 +269,23 @@ const App = () => {
               <Accordion.Panel p={"md"}>
                 <Flex direction="column" gap="lg">
                   <form
-                    onSubmit={newTaskForm.onSubmit((values) => {
+                    onSubmit={TaskForm.onSubmit((values) => {
                       addTask(values);
                     })}
                   >
                     <TextInput
                       label={"ชื่องาน"}
                       withAsterisk
-                      {...newTaskForm.getInputProps("title")}
+                      {...TaskForm.getInputProps("title")}
                     />
                     <TextInput
                       label={"รายละเอียด"}
                       withAsterisk
-                      {...newTaskForm.getInputProps("description")}
+                      {...TaskForm.getInputProps("description")}
                     />
                     <TextInput
                       label={"หมายเหตุ"}
-                      {...newTaskForm.getInputProps("note")}
+                      {...TaskForm.getInputProps("note")}
                     />
                     <Flex>
                       <Radio.Group
@@ -282,11 +294,15 @@ const App = () => {
                         name={"taskType"}
                         withAsterisk
                         sx={{ flexGrow: 1 }}
-                        {...newTaskForm.getInputProps("type")}
+                        {...TaskForm.getInputProps("type")}
                       >
                         <Group mt={"xs"}>
                           <Radio label={"หัวข้อหลัก"} value={"task"} />
-                          <Radio label={"หัวข้อย่อย"} value={"subtask"} />
+                          <Radio
+                            label={"หัวข้อย่อย"}
+                            value={"subtask"}
+                            disabled={list.length == 0}
+                          />
                         </Group>
                       </Radio.Group>
                       <Box
@@ -330,15 +346,61 @@ const App = () => {
                 <th style={{ width: "5rem", textAlign: "center" }}>จัดการ</th>
               </tr>
             </thead>
-
-            <tbody>
-              {list ? list.map((task, index) => renderTask(task, index)) : null}
-            </tbody>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+            >
+              {list.length > 0 ? (
+                <tbody>
+                  <SortableContext
+                    items={list}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {list
+                      ? list.map((task, index) => (
+                          <>
+                            <Rows
+                              id={task.id}
+                              title={task.title}
+                              description={task.description}
+                              note={task.note}
+                              type={task.type}
+                            />
+                          </>
+                        ))
+                      : undefined}
+                  </SortableContext>
+                </tbody>
+              ) : (
+                <>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={6} align="center">
+                        <Text fz={"1rem"} m={"xl"}>
+                          ไม่พบข้อมูลขอบเขตงาน
+                        </Text>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </>
+              )}
+            </DndContext>
           </Table>
 
           <Space h={"2em"} />
-          <Flex justify={"flex-end"}>
-            <Button>ออกใบ Requirement</Button>
+          <Flex justify={"flex-end"} gap={"xl"}>
+            <Button
+              disabled={list.length <= 0}
+              color="red"
+              onClick={() => {
+                handlers.setState([]);
+              }}
+            >
+              ลบข้อมูล
+            </Button>
+            <Button disabled={list.length <= 0}>ออกใบ Requirement</Button>
           </Flex>
         </Container>
       </Box>
