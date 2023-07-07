@@ -10,15 +10,21 @@ import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
 import { SortableItem } from "./SortableItem";
 import { TaskType, Task } from "../model";
+import { v4 } from "uuid";
 
-interface props {
-  id: string;
-  title: string;
-  description: string;
-  note: string;
-  type: TaskType;
+interface props extends Task {
+  index: number;
+  removeTask: (id: string, index: number) => void;
 }
-export default function Rows({ id, title, description, note, type }: Task) {
+export default function Rows({
+  id,
+  title,
+  description,
+  note,
+  type,
+  index,
+  removeTask,
+}: props) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: id });
   const style = {
@@ -61,7 +67,11 @@ export default function Rows({ id, title, description, note, type }: Task) {
               <ActionIcon variant="transparent" color="green.6">
                 <IconEdit />
               </ActionIcon>
-              <ActionIcon variant="transparent" color="red.6">
+              <ActionIcon
+                variant="transparent"
+                color="red.6"
+                onClick={() => removeTask(id, index)}
+              >
                 <IconTrashXFilled />
               </ActionIcon>
             </Flex>
@@ -102,7 +112,11 @@ export default function Rows({ id, title, description, note, type }: Task) {
             <ActionIcon variant="transparent" color="green.4">
               <IconEdit />
             </ActionIcon>
-            <ActionIcon variant="transparent" color="red.4">
+            <ActionIcon
+              variant="transparent"
+              color="red.4"
+              onClick={() => removeTask(id, index)}
+            >
               <IconTrashXFilled />
             </ActionIcon>
           </Flex>

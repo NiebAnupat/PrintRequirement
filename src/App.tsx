@@ -31,6 +31,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragEndEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -42,6 +43,7 @@ import {
   restrictToVerticalAxis,
   restrictToWindowEdges,
 } from "@dnd-kit/modifiers";
+import { v4 } from "uuid";
 import Rows from "./components/Rows";
 import { makeFlattenTasks, makeTaskData } from "./helper";
 import { Task, TaskData } from "./model";
@@ -88,7 +90,7 @@ const TestData: TaskData[] = [
 
 const App = () => {
   const [list, handlers] = useListState<Task>([]);
-  const [isDroped, setIsDroped] = useState(false);
+  const [isChange, setIsChange] = useState(false);
 
   let tasksData = makeTaskData(list);
 
@@ -104,7 +106,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    if (isDroped) {
+    if (isChange) {
       tasksData = makeTaskData(list);
       tasksData.map((task, index) => {
         task.id = `${index + 1}`;
@@ -115,20 +117,20 @@ const App = () => {
         }
       });
       const newTasks = makeFlattenTasks(tasksData);
+      setIsChange(false);
       handlers.setState(newTasks);
-      setIsDroped(false);
     }
   }, [list]);
 
-  const handleDragEnd = (event: any) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (active.id !== over.id) {
+    if (active.id !== over?.id) {
       const oldIndex = list.findIndex((item) => item.id === active.id);
-      const newIndex = list.findIndex((item) => item.id === over.id);
+      const newIndex = list.findIndex((item) => item.id === over?.id);
       if (
         (list[oldIndex].type === "subtask" && newIndex === 0) ||
-        (list[newIndex].type === "subtask" && oldIndex === 0) ||
+        // (list[newIndex].type === "subtask" && oldIndex === 0) ||
         (list[oldIndex].type === "subtask" && newIndex === 0)
       ) {
         return;
@@ -141,7 +143,7 @@ const App = () => {
       // check if first task is subtask
       if (tempList[0].type === "subtask") return;
 
-      setIsDroped(true);
+      setIsChange(true);
       handlers.reorder({ from: oldIndex, to: newIndex });
     }
   };
@@ -212,6 +214,20 @@ const App = () => {
         type: "subtask",
       });
     }
+  };
+
+  const removeTask = (id: string, index: number): void => {
+    if (list.length === 1) {
+      handlers.filter((task) => task.id !== id);
+      setIsChange(true);
+      return;
+    }
+    if (index === 0 && list[index + 1].type === "subtask") {
+      console.log("not allow remove first task");
+      return;
+    }
+    handlers.filter((task) => task.id !== id);
+    setIsChange(true);
   };
 
   return (
@@ -335,59 +351,59 @@ const App = () => {
           <Text fz={"1.5rem"} align={"center"}>
             ตารางขอบเขตงาน
           </Text>
-          <Table>
-            <thead>
-              <tr>
-                <th style={{ width: "1rem" }}></th>
-                <th style={{ width: "2rem", textAlign: "center" }}>หมายเลข</th>
-                <th style={{ textAlign: "start" }}>หัวข้อ</th>
-                <th>รายละเอียด</th>
-                <th style={{ width: "9rem" }}>หมายเหตุ</th>
-                <th style={{ width: "5rem", textAlign: "center" }}>จัดการ</th>
-              </tr>
-            </thead>
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
-            >
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+            autoScroll={true}
+          >
+            <Table>
+              <thead>
+                <tr>
+                  <th style={{ width: "1rem" }}></th>
+                  <th style={{ width: "2rem", textAlign: "center" }}>
+                    หมายเลข
+                  </th>
+                  <th style={{ textAlign: "start" }}>หัวข้อ</th>
+                  <th>รายละเอียด</th>
+                  <th style={{ width: "9rem" }}>หมายเหตุ</th>
+                  <th style={{ width: "5rem", textAlign: "center" }}>จัดการ</th>
+                </tr>
+              </thead>
               {list.length > 0 ? (
                 <tbody>
                   <SortableContext
                     items={list}
                     strategy={verticalListSortingStrategy}
                   >
-                    {list
-                      ? list.map((task, index) => (
-                          <>
-                            <Rows
-                              id={task.id}
-                              title={task.title}
-                              description={task.description}
-                              note={task.note}
-                              type={task.type}
-                            />
-                          </>
-                        ))
-                      : undefined}
+                    {list.map((task, index) => (
+                      <Rows
+                        id={task.id}
+                        title={task.title}
+                        description={task.description}
+                        note={task.note}
+                        type={task.type}
+                        index={index}
+                        removeTask={removeTask}
+                        key={task.id}
+                      />
+                    ))}
                   </SortableContext>
                 </tbody>
               ) : (
-                <>
-                  <tfoot>
-                    <tr>
-                      <td colSpan={6} align="center">
-                        <Text fz={"1rem"} m={"xl"}>
-                          ไม่พบข้อมูลขอบเขตงาน
-                        </Text>
-                      </td>
-                    </tr>
-                  </tfoot>
-                </>
+                <tfoot>
+                  <tr>
+                    <td colSpan={6} align="center">
+                      <Text fz={"1rem"} m={"xl"}>
+                        ไม่พบข้อมูลขอบเขตงาน
+                      </Text>
+                    </td>
+                  </tr>
+                </tfoot>
               )}
-            </DndContext>
-          </Table>
+            </Table>
+          </DndContext>
 
           <Space h={"2em"} />
           <Flex justify={"flex-end"} gap={"xl"}>
