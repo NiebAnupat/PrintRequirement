@@ -1,6 +1,5 @@
 import {
   Accordion,
-  ActionIcon,
   Box,
   Button,
   Container,
@@ -17,11 +16,6 @@ import {
   Textarea,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import {
-  IconEdit,
-  IconGripVertical,
-  IconTrashXFilled,
-} from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { useListState } from "@mantine/hooks";
 import {
@@ -34,7 +28,6 @@ import {
   DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -43,7 +36,6 @@ import {
   restrictToVerticalAxis,
   restrictToWindowEdges,
 } from "@dnd-kit/modifiers";
-import { v4 } from "uuid";
 import Rows from "./components/Rows";
 import { makeFlattenTasks, makeTaskData } from "./helper";
 import { Task, TaskData } from "./model";

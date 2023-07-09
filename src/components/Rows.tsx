@@ -1,16 +1,12 @@
-import React from "react";
 import { ActionIcon, Flex, Text } from "@mantine/core";
 import {
   IconGripVertical,
   IconEdit,
   IconTrashXFilled,
 } from "@tabler/icons-react";
-import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
-import { SortableItem } from "./SortableItem";
-import { TaskType, Task } from "../model";
-import { v4 } from "uuid";
+import {  Task } from "../model";
 
 interface props extends Task {
   index: number;
