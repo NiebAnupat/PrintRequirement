@@ -1,23 +1,32 @@
 import {
   Accordion,
+  ActionIcon,
   Box,
   Button,
   Container,
   Divider,
   Flex,
+  Global,
   Grid,
   Group,
   Image,
+  MantineProvider,
+  Modal,
   Radio,
   Space,
+  Switch,
   Table,
   Text,
   TextInput,
   Textarea,
+  useMantineColorScheme,
+  useMantineTheme,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { Notifications, notifications as noti } from "@mantine/notifications";
+import { ModalsProvider, modals } from "@mantine/modals";
 import { useEffect, useState } from "react";
-import { useListState } from "@mantine/hooks";
+import { useDisclosure, useListState, useWindowScroll } from "@mantine/hooks";
 import {
   DndContext,
   closestCenter,
@@ -38,7 +47,10 @@ import {
 } from "@dnd-kit/modifiers";
 import Rows from "./components/Rows";
 import { makeFlattenTasks, makeTaskData } from "./helper";
-import { Task, TaskData } from "./model";
+import { Project, Task, TaskData } from "./model";
+import { IconCheck, IconMoonStars, IconSun } from "@tabler/icons-react";
+import { Router, useNavigate } from "react-router-dom";
+import { MyFontStyles, MyGlobalStyles } from "./MyGobal";
 
 const TestData: TaskData[] = [
   {
@@ -80,11 +92,16 @@ const TestData: TaskData[] = [
   },
 ];
 
+
 const App = () => {
   const [list, handlers] = useListState<Task>([]);
   const [isChange, setIsChange] = useState(false);
-
-  let tasksData = makeTaskData(list);
+  const [accordionValue, setAccordionValue] = useState<string[]>([]);
+  const [scroll, scrollTo] = useWindowScroll();
+  const [opened, { open, close }] = useDisclosure(false);
+  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+  const theme = useMantineTheme();
+  const navigate = useNavigate();
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -99,7 +116,7 @@ const App = () => {
 
   useEffect(() => {
     if (isChange) {
-      tasksData = makeTaskData(list);
+      const tasksData = makeTaskData(list);
       tasksData.map((task, index) => {
         task.id = `${index + 1}`;
         if (task.subtasks) {
@@ -140,6 +157,21 @@ const App = () => {
     }
   };
 
+  const ProjectDetailForm = useForm<Project>({
+    initialValues: {
+      title: "",
+      description: "",
+      note: "",
+      clientName: "",
+      clientContact: "",
+    },
+    validate: {
+      title: (value) => (value.length <= 0 ? "กรุณากรอกข้อมูล" : null),
+      clientName: (value) => (value.length <= 0 ? "กรุณากรอกข้อมูล" : null),
+      clientContact: (value) => (value.length <= 0 ? "กรุณากรอกข้อมูล" : null),
+    },
+  });
+
   const TaskForm = useForm<Task>({
     initialValues: {
       id: "",
@@ -149,15 +181,24 @@ const App = () => {
       type: "task",
     },
     validate: {
-      title: (value) => {
-        return value.length <= 0 ?? "กรุณากรอกข้อมูล";
-      },
-      description: (value) => {
-        return value.length <= 0 ?? "กรุณากรอกข้อมูล";
-      },
-      type: (value) => {
-        return value.length <= 0 ?? "กรุณาเลือกประเภท";
-      },
+      title: (value) => (value.length <= 0 ? "กรุณากรอกข้อมูล" : null),
+      description: (value) => (value.length <= 0 ? "กรุณากรอกข้อมูล" : null),
+      type: (value) => (value.length <= 0 ? "เลือกประเภท" : null),
+    },
+  });
+
+  const EditTaskForm = useForm<Task>({
+    initialValues: {
+      id: "",
+      title: "",
+      description: "",
+      note: "",
+      type: "task",
+    },
+    validate: {
+      title: (value) => (value.length <= 0 ? "กรุณากรอกข้อมูล" : null),
+      description: (value) => (value.length <= 0 ? "กรุณากรอกข้อมูล" : null),
+      type: (value) => (value.length <= 0 ? "เลือกประเภท" : null),
     },
   });
 
@@ -173,6 +214,14 @@ const App = () => {
           note: Task.note,
           type: "task",
         });
+        noti.show({
+          title: "เพิ่มรายการหลักสำเร็จ",
+          message: `เพิ่มรายการ ${Task.title} สำเร็จ`,
+          radius: "lg",
+          color: "green",
+          icon: <IconCheck />,
+          autoClose: 2000,
+        });
         return;
       }
       const beforeID = list[list.length - 1].id.split(".");
@@ -183,6 +232,14 @@ const App = () => {
         description: Task.description,
         note: Task.note,
         type: "task",
+      });
+      noti.show({
+        title: "เพิ่มรายการหลักสำเร็จ",
+        message: `เพิ่มรายการ ${Task.title} สำเร็จ`,
+        radius: "lg",
+        color: "green",
+        icon: <IconCheck />,
+        autoClose: 2000,
       });
     } else {
       const beforeID = list[list.length - 1].id.split(".");
@@ -195,6 +252,15 @@ const App = () => {
           note: Task.note,
           type: "subtask",
         });
+        TaskForm.reset();
+        noti.show({
+          title: "เพิ่มรายการย่อยสำเร็จ",
+          message: `เพิ่มรายการ ${Task.title} สำเร็จ`,
+          radius: "lg",
+          color: "green",
+          icon: <IconCheck />,
+          autoClose: 2000,
+        });
         return;
       }
       newID = `${beforeID[0]}.${parseInt(beforeID[1]) + 1}`;
@@ -205,7 +271,17 @@ const App = () => {
         note: Task.note,
         type: "subtask",
       });
+      noti.show({
+        title: "เพิ่มรายการย่อยสำเร็จ",
+        message: `เพิ่มรายการ ${Task.title} สำเร็จ`,
+        radius: "lg",
+        color: "green",
+        icon: <IconCheck />,
+        autoClose: 2000,
+      });
     }
+
+    TaskForm.reset();
   };
 
   const removeTask = (id: string, index: number): void => {
@@ -221,197 +297,364 @@ const App = () => {
     handlers.filter((task) => task.id !== id);
     setIsChange(true);
   };
+  const editTask = (newTask: Task): void => {
+    const index = list.findIndex((task) => task.id === newTask.id);
+    handlers.setItem(index, newTask);
+    close();
+  };
+
+  const printRequirement = () => {
+    if (ProjectDetailForm.validate().hasErrors) {
+      !accordionValue.find((item) => item === "prjectInfo") &&
+        setAccordionValue([...accordionValue, "prjectInfo"]);
+      scrollTo({
+        y: 0,
+      });
+      return;
+    }
+    if (list.length === 0) {
+      noti.show({
+        title: "ไม่สามารถพิมพ์ได้",
+        message: "ไม่มีรายการที่จะพิมพ์",
+        radius: "lg",
+        color: "yellow.6",
+        autoClose: 2000,
+      });
+      return;
+    }
+
+    navigate("/print", {
+      replace: false,
+      state: {
+        project: ProjectDetailForm.values,
+        tasks: list,
+      },
+    });
+
+    noti.show({
+      title: "พิมพ์ Requirement สำเร็จ",
+      message: "ใบ Requirement ได้ถูกพิมพ์เรียบร้อยแล้ว",
+      radius: "lg",
+      color: "green",
+      icon: <IconCheck />,
+      autoClose: 2000,
+    });
+  };
+
+  const editTaskModal = () => {
+    return (
+      <Modal
+        opened={opened}
+        onClose={close}
+        title={`แก้ไขรายการ${
+          EditTaskForm?.values.type === "task" ? "หลัก" : "ย่อย"
+        } ลำดับ ${EditTaskForm?.values.id}`}
+        centered
+        radius={"lg"}
+        padding={"1.5em"}
+      >
+        <Box>
+          <form onSubmit={EditTaskForm.onSubmit((v) => editTask(v))}>
+            <Flex direction={"column"} gap={"md"}>
+              <TextInput
+                label={"ชื่อรายการ"}
+                withAsterisk
+                {...EditTaskForm.getInputProps("title")}
+              />
+              <TextInput
+                label={"รายละเอียด"}
+                withAsterisk
+                {...EditTaskForm.getInputProps("description")}
+              />
+              <TextInput
+                label={"หมายเหตุ"}
+                {...EditTaskForm.getInputProps("note")}
+              />
+
+              <Flex justify={"flex-end"}>
+                <Button onClick={close} variant={"subtle"} color="red.7">
+                  ยกเลิก
+                </Button>
+                <Button
+                  type="submit"
+                  ml={"md"}
+                  variant={"gradient"}
+                  gradient={{ from: "violet.7.", to: "blue.4" }}
+                >
+                  บันทึก
+                </Button>
+              </Flex>
+            </Flex>
+          </form>
+        </Box>
+      </Modal>
+    );
+  };
 
   return (
     <>
-      <Box p={"3em"}>
-        <Container>
-          <Flex w={"100%"} align="center" gap={"xl"}>
-            <Image src={"catcode-logo.png"} width={100} radius={"xl"} />
-            <Box>
-              <Text fz={"2rem"}>เว็บไซต์ออกใบ Requirement</Text>
-              <Text fz={"1rem"} c={"dimmed"}>
-                By CatCode
-              </Text>
-            </Box>
-          </Flex>
-          <Divider my={"md"} />
-
-          <Accordion
-            variant="separated"
-            radius="xl"
-            defaultValue="prjectInfo"
-            my={"xl"}
-          >
-            <Accordion.Item value="prjectInfo">
-              <Accordion.Control>ข้อมูลโปรเจค</Accordion.Control>
-              <Accordion.Panel p={"md"}>
-                <Grid>
-                  <Grid.Col span={6}>
-                    <TextInput label={"ชื่อโปรเจค"} withAsterisk />
-                  </Grid.Col>
-                  <Grid.Col span={6}>
-                    <TextInput label={"ชื่อลูกค้า"} withAsterisk />
-                  </Grid.Col>
-                  <Grid.Col span={6}>
-                    <Textarea label={"รายละเอียดโปรเจค"} minRows={6} autosize />
-                  </Grid.Col>
-                  <Grid.Col
-                    span={6}
-                    sx={{
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "center",
-                      gap: "1em",
-                    }}
+      <MantineProvider
+        withGlobalStyles
+        withNormalizeCSS
+        theme={{
+          colorScheme: colorScheme,
+          fontFamily: "Noto Sans Thai",
+          primaryColor: "indigo",
+        }}
+      >
+        <ModalsProvider>
+          <Notifications />
+          <MyFontStyles />
+          <MyGlobalStyles />
+          <Box p={"3em"}>
+            {editTaskModal()}
+            <Container size={"75%"}>
+              <Flex w={"100%"} align="center" gap={"xl"}>
+                <Image src={"catcode-logo.png"} width={100} radius={"xl"} />
+                <Box>
+                  <Text
+                    fz={"2rem"}
+                  
                   >
-                    <TextInput label={"ช่องทางการติดต่อลูกค้า"} withAsterisk />
-                    <TextInput label={"หมายเหตุ"} />
-                  </Grid.Col>
-                </Grid>
-              </Accordion.Panel>
-            </Accordion.Item>
-
-            <Accordion.Item value="addTask">
-              <Accordion.Control>เพิ่มงาน</Accordion.Control>
-              <Accordion.Panel p={"md"}>
-                <Flex direction="column" gap="lg">
-                  <form
-                    onSubmit={TaskForm.onSubmit((values) => {
-                      addTask(values);
-                    })}
-                  >
-                    <TextInput
-                      label={"ชื่องาน"}
-                      withAsterisk
-                      {...TaskForm.getInputProps("title")}
-                    />
-                    <TextInput
-                      label={"รายละเอียด"}
-                      withAsterisk
-                      {...TaskForm.getInputProps("description")}
-                    />
-                    <TextInput
-                      label={"หมายเหตุ"}
-                      {...TaskForm.getInputProps("note")}
-                    />
-                    <Flex>
-                      <Radio.Group
-                        label={"ประเภทงาน"}
-                        description={"เลือกประเภทงานที่ต้องการ"}
-                        name={"taskType"}
-                        withAsterisk
-                        sx={{ flexGrow: 1 }}
-                        {...TaskForm.getInputProps("type")}
-                      >
-                        <Group mt={"xs"}>
-                          <Radio label={"หัวข้อหลัก"} value={"task"} />
-                          <Radio
-                            label={"หัวข้อย่อย"}
-                            value={"subtask"}
-                            disabled={list.length == 0}
-                          />
-                        </Group>
-                      </Radio.Group>
-                      <Box
-                        display={"flex"}
-                        mt={"auto"}
-                        sx={{ justifyContent: "flex-end" }}
-                      >
-                        <Button
-                          w={"15em"}
-                          variant="gradient"
-                          gradient={{
-                            from: "indigo.9",
-                            to: "red.4",
-                          }}
-                          type={"submit"}
-                        >
-                          เพิ่มงาน
-                        </Button>
-                      </Box>
-                    </Flex>
-                  </form>
-                </Flex>
-              </Accordion.Panel>
-            </Accordion.Item>
-          </Accordion>
-
-          <Space h={"2em"} />
-
-          {/* TOR(Table of requirement) */}
-          <Text fz={"1.5rem"} align={"center"}>
-            ตารางขอบเขตงาน
-          </Text>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-            modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
-            autoScroll={true}
-          >
-            <Table>
-              <thead>
-                <tr>
-                  <th style={{ width: "1rem" }}></th>
-                  <th style={{ width: "2rem", textAlign: "center" }}>
-                    หมายเลข
-                  </th>
-                  <th style={{ textAlign: "start" }}>หัวข้อ</th>
-                  <th>รายละเอียด</th>
-                  <th style={{ width: "9rem" }}>หมายเหตุ</th>
-                  <th style={{ width: "5rem", textAlign: "center" }}>จัดการ</th>
-                </tr>
-              </thead>
-              {list.length > 0 ? (
-                <tbody>
-                  <SortableContext
-                    items={list}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {list.map((task, index) => (
-                      <Rows
-                        id={task.id}
-                        title={task.title}
-                        description={task.description}
-                        note={task.note}
-                        type={task.type}
-                        index={index}
-                        removeTask={removeTask}
-                        key={task.id}
+                    เว็บไซต์ออกใบ Requirement
+                  </Text>
+                  <Text fz={"1rem"} c={"dimmed"}>
+                    By CatCode
+                  </Text>
+                </Box>
+                <Group position="center" ml={"auto"}>
+                  <Switch
+                    checked={colorScheme === "dark"}
+                    onChange={() => toggleColorScheme()}
+                    size="lg"
+                    onLabel={
+                      <IconSun
+                        color={theme.white}
+                        size="1.25rem"
+                        stroke={1.5}
                       />
-                    ))}
-                  </SortableContext>
-                </tbody>
-              ) : (
-                <tfoot>
-                  <tr>
-                    <td colSpan={6} align="center">
-                      <Text fz={"1rem"} m={"xl"}>
-                        ไม่พบข้อมูลขอบเขตงาน
-                      </Text>
-                    </td>
-                  </tr>
-                </tfoot>
-              )}
-            </Table>
-          </DndContext>
-
-          <Space h={"2em"} />
-          <Flex justify={"flex-end"} gap={"xl"}>
-            <Button
-              disabled={list.length <= 0}
-              color="red"
-              onClick={() => {
-                handlers.setState([]);
-              }}
-            >
-              ลบข้อมูล
-            </Button>
-            <Button disabled={list.length <= 0}>ออกใบ Requirement</Button>
-          </Flex>
-        </Container>
-      </Box>
+                    }
+                    offLabel={
+                      <IconMoonStars
+                        color={theme.colors.gray[6]}
+                        size="1.25rem"
+                        stroke={1.5}
+                      />
+                    }
+                  />
+                </Group>
+              </Flex>
+              <Divider my={"md"} />
+              <Accordion
+                variant="separated"
+                radius="xl"
+                my={"xl"}
+                multiple
+                value={accordionValue}
+                onChange={setAccordionValue}
+              >
+                <Accordion.Item value="prjectInfo">
+                  <Accordion.Control>ข้อมูลโปรเจค</Accordion.Control>
+                  <Accordion.Panel p={"md"}>
+                    <form>
+                      <Grid>
+                        <Grid.Col span={6}>
+                          <TextInput
+                            label={"ชื่อโปรเจค"}
+                            withAsterisk
+                            {...ProjectDetailForm.getInputProps("title")}
+                          />
+                        </Grid.Col>
+                        <Grid.Col span={6}>
+                          <TextInput
+                            label={"ชื่อลูกค้า"}
+                            withAsterisk
+                            {...ProjectDetailForm.getInputProps("clientName")}
+                          />
+                        </Grid.Col>
+                        <Grid.Col span={6}>
+                          <Textarea
+                            label={"รายละเอียดโปรเจค"}
+                            minRows={6}
+                            autosize
+                            {...ProjectDetailForm.getInputProps("description")}
+                          />
+                        </Grid.Col>
+                        <Grid.Col
+                          span={6}
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                            gap: "1em",
+                          }}
+                        >
+                          <TextInput
+                            label={"ช่องทางการติดต่อลูกค้า"}
+                            withAsterisk
+                            {...ProjectDetailForm.getInputProps(
+                              "clientContact"
+                            )}
+                          />
+                          <TextInput
+                            label={"หมายเหตุ"}
+                            {...ProjectDetailForm.getInputProps("note")}
+                          />
+                        </Grid.Col>
+                      </Grid>
+                    </form>
+                  </Accordion.Panel>
+                </Accordion.Item>
+                <Accordion.Item value="addTask">
+                  <Accordion.Control>เพิ่มงาน</Accordion.Control>
+                  <Accordion.Panel p={"md"}>
+                    <Flex direction="column" gap="lg">
+                      <form
+                        onSubmit={TaskForm.onSubmit((values) => {
+                          addTask(values);
+                        })}
+                      >
+                        <TextInput
+                          label={"ชื่องาน"}
+                          withAsterisk
+                          {...TaskForm.getInputProps("title")}
+                        />
+                        <TextInput
+                          label={"รายละเอียด"}
+                          withAsterisk
+                          {...TaskForm.getInputProps("description")}
+                        />
+                        <TextInput
+                          label={"หมายเหตุ"}
+                          {...TaskForm.getInputProps("note")}
+                        />
+                        <Flex>
+                          <Radio.Group
+                            label={"ประเภทงาน"}
+                            description={"เลือกประเภทงานที่ต้องการ"}
+                            name={"taskType"}
+                            withAsterisk
+                            sx={{ flexGrow: 1 }}
+                            {...TaskForm.getInputProps("type")}
+                          >
+                            <Group mt={"xs"}>
+                              <Radio label={"หัวข้อหลัก"} value={"task"} />
+                              <Radio
+                                label={"หัวข้อย่อย"}
+                                value={"subtask"}
+                                disabled={list.length == 0}
+                              />
+                            </Group>
+                          </Radio.Group>
+                          <Box
+                            display={"flex"}
+                            mt={"auto"}
+                            sx={{ justifyContent: "flex-end" }}
+                          >
+                            <Button
+                              w={"15em"}
+                              variant="gradient"
+                              gradient={{
+                                from: "indigo.9",
+                                to: "red.4",
+                              }}
+                              type={"submit"}
+                            >
+                              เพิ่มงาน
+                            </Button>
+                          </Box>
+                        </Flex>
+                      </form>
+                    </Flex>
+                  </Accordion.Panel>
+                </Accordion.Item>
+              </Accordion>
+              <Space h={"2em"} />
+              {/* TOR(Table of requirement) */}
+              <Text fz={"1.5rem"} align={"center"}>
+                ตารางขอบเขตงาน
+              </Text>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+                modifiers={[restrictToVerticalAxis, restrictToWindowEdges]}
+                autoScroll={true}
+              >
+                <Table>
+                  <thead>
+                    <tr>
+                      <th style={{ width: "1rem" }}></th>
+                      <th style={{ width: "2rem", textAlign: "center" }}>
+                        หมายเลข
+                      </th>
+                      <th style={{ textAlign: "start" }}>หัวข้อ</th>
+                      <th>รายละเอียด</th>
+                      <th style={{ width: "9rem" }}>หมายเหตุ</th>
+                      <th style={{ width: "5rem", textAlign: "center" }}>
+                        จัดการ
+                      </th>
+                    </tr>
+                  </thead>
+                  {list.length > 0 ? (
+                    <tbody>
+                      <SortableContext
+                        items={list}
+                        strategy={verticalListSortingStrategy}
+                      >
+                        {list.map((task, index) => (
+                          <Rows
+                            key={task.id}
+                            index={index}
+                            task={task}
+                            setEditTask={EditTaskForm.setValues}
+                            removeTask={removeTask}
+                            openModal={open}
+                          />
+                        ))}
+                      </SortableContext>
+                    </tbody>
+                  ) : (
+                    <tfoot>
+                      <tr>
+                        <td colSpan={6} align="center">
+                          <Text fz={"1rem"} m={"xl"}>
+                            ไม่พบข้อมูลขอบเขตงาน
+                          </Text>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  )}
+                </Table>
+              </DndContext>
+              <Space h={"2em"} />
+              <Flex justify={"flex-end"} gap={"xl"}>
+                <Button
+                  disabled={list.length <= 0}
+                  variant="subtle"
+                  color="red.7"
+                  onClick={() => {
+                    handlers.setState([]);
+                  }}
+                >
+                  ลบข้อมูล
+                </Button>
+                <Button
+                  disabled={list.length <= 0}
+                  variant="gradient"
+                  gradient={{
+                    from: "red.4",
+                    to: "violet.9",
+                  }}
+                  onClick={printRequirement}
+                >
+                  ออกใบ Requirement
+                </Button>
+              </Flex>
+            </Container>
+          </Box>
+        </ModalsProvider>
+      </MantineProvider>
     </>
   );
 };

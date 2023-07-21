@@ -18,7 +18,6 @@ const makeTaskData = (tasks: Task[]): TaskData[] => {
       lastParentIndex = taskData.length - 1;
     } else if (task.type === "subtask") {
       const parent: TaskData = taskData[lastParentIndex];
-
       if (parent.subtasks === undefined) {
         parent.subtasks = [] as TaskData[];
       }

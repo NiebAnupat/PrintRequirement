@@ -1,4 +1,10 @@
-import { ActionIcon, Flex, Text } from "@mantine/core";
+import {
+  ActionIcon,
+  Flex,
+  Text,
+  useMantineColorScheme,
+  useMantineTheme,
+} from "@mantine/core";
 import {
   IconGripVertical,
   IconEdit,
@@ -6,33 +12,41 @@ import {
 } from "@tabler/icons-react";
 import { CSS } from "@dnd-kit/utilities";
 import { useSortable } from "@dnd-kit/sortable";
-import {  Task } from "../model";
+import { Task } from "../model";
 
-interface props extends Task {
+interface props {
   index: number;
   removeTask: (id: string, index: number) => void;
+  task: Task;
+  setEditTask: (task: Task) => void;
+  openModal: () => void;
 }
 export default function Rows({
-  id,
-  title,
-  description,
-  note,
-  type,
   index,
+  task,
   removeTask,
+  setEditTask,
+  openModal,
 }: props) {
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: id });
+    useSortable({ id: task.id });
+  const { colorScheme, toggleColorScheme } = useMantineColorScheme();
+  const theme = useMantineTheme();
   const style = {
     transform: CSS.Translate.toString(transform),
-    backgroundColor: type === "subtask" ? "#2C2E33" : undefined,
+    backgroundColor:
+      task.type === "subtask"
+        ? colorScheme == "dark"
+          ? theme.colors.dark[5]
+          : theme.colors.gray[2]
+        : undefined,
     transition,
   };
 
-  if (type === "task") {
+  if (task.type === "task") {
     return (
       <>
-        <tr key={id} ref={setNodeRef} style={style}>
+        <tr key={task.id} ref={setNodeRef} style={style}>
           <td>
             <ActionIcon {...attributes} {...listeners}>
               <IconGripVertical size="1.5rem" stroke={1.5} />
@@ -40,33 +54,40 @@ export default function Rows({
           </td>
           <td>
             <Text weight={900} align={"center"} fz={".85rem"}>
-              {id}
+              {task.id}
             </Text>
           </td>
           <td>
             <Text weight={900} fz={".85rem"}>
-              {title}
+              {task.title}
             </Text>
           </td>
           <td>
             <Text weight={900} fz={".85rem"}>
-              {description}
+              {task.description}
             </Text>
           </td>
           <td>
             <Text weight={900} fz={".85rem"}>
-              {note}
+              {task.note}
             </Text>
           </td>
           <td>
             <Flex gap="md">
-              <ActionIcon variant="transparent" color="green.6">
+              <ActionIcon
+                variant="transparent"
+                color="green.6"
+                onClick={() => {
+                  setEditTask(task);
+                  openModal();
+                }}
+              >
                 <IconEdit />
               </ActionIcon>
               <ActionIcon
                 variant="transparent"
                 color="red.6"
-                onClick={() => removeTask(id, index)}
+                onClick={() => removeTask(task.id, index)}
               >
                 <IconTrashXFilled />
               </ActionIcon>
@@ -77,7 +98,7 @@ export default function Rows({
     );
   } else {
     return (
-      <tr key={id} ref={setNodeRef} style={style}>
+      <tr key={task.id} ref={setNodeRef} style={style}>
         <td>
           <ActionIcon {...attributes} {...listeners}>
             <IconGripVertical size="1rem" stroke={1.5} />
@@ -85,33 +106,40 @@ export default function Rows({
         </td>
         <td>
           <Text weight={500} align={"center"} fz={".85rem"}>
-            &emsp;{id}
+            &emsp;{task.id}
           </Text>
         </td>
         <td>
           <Text weight={500} fz={".85rem"}>
-            &emsp;{title}
+            &emsp;{task.title}
           </Text>
         </td>
         <td>
           <Text weight={500} fz={".85rem"}>
-            &emsp;{description}
+            &emsp;{task.description}
           </Text>
         </td>
         <td>
           <Text weight={500} fz={".85rem"}>
-            &emsp;{note}
+            &emsp;{task.note}
           </Text>
         </td>
         <td>
           <Flex gap="md">
-            <ActionIcon variant="transparent" color="green.4">
+            <ActionIcon
+              variant="transparent"
+              color="green.6"
+              onClick={() => {
+                setEditTask(task);
+                openModal();
+              }}
+            >
               <IconEdit />
             </ActionIcon>
             <ActionIcon
               variant="transparent"
-              color="red.4"
-              onClick={() => removeTask(id, index)}
+              color="red.6"
+              onClick={() => removeTask(task.id, index)}
             >
               <IconTrashXFilled />
             </ActionIcon>

@@ -1,56 +1,28 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App.tsx'
-import {MantineProvider, Global} from '@mantine/core';
-import './index.css'
-
-function MyFontStyles() {
-    return (
-        <Global
-            styles={[
-                {
-                    "@font-face": {
-                        fontFamily: "Noto Sans Thai",
-                        src: `url("https://cdn.jsdelivr.net/gh/lazywasabi/thai-web-fonts@7/fonts/NotoSansThai/NotoSansThai-Regular.woff2") format("woff2")`,
-                        fontStyle: "normal",
-                        fontWeight: "normal",
-                        fontDisplay: "swap",
-                    },
-                },
-            ]}
-        />
-    );
-}
-
-function MyGlobalStyles() {
-    return (
-        <Global
-            styles={[
-                {
-                    "html, body": {
-                        color: "white",
-                    },
-                },
-            ]}
-        />
-    );
-}
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import App from "./App.tsx";
+import { MantineProvider, Global } from "@mantine/core";
+import { Notifications } from "@mantine/notifications";
+import { ModalsProvider } from "@mantine/modals";
+import "./index.css";
+import { MyColorSchemeProvider } from "./components/MyColorSchemeProvider.tsx";
+import { PrintPDF } from "./PrintPDF.tsx";
 
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-    <React.StrictMode>
-        <MantineProvider
-            withGlobalStyles
-            withNormalizeCSS
-            theme={{
-                colorScheme: "dark",
-                fontFamily: "Noto Sans Thai",
-                primaryColor: "indigo",
-            }}
-        >
-            <MyFontStyles/>
-            <MyGlobalStyles/>
-            <App/>
-        </MantineProvider>
-    </React.StrictMode>,
-)
+
+const router = createBrowserRouter([
+  { path: "/", element: <App /> },
+  {
+    path: "/print",
+    element: <PrintPDF />,
+  },
+]);
+
+ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+  <React.StrictMode>
+    <MyColorSchemeProvider>
+      <RouterProvider router={router} />
+    </MyColorSchemeProvider>
+  </React.StrictMode>
+);

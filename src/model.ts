@@ -11,3 +11,11 @@ export interface Task {
 export interface TaskData extends Task {
   subtasks?: Task[];
 }
+
+export interface Project {
+  title: string;
+  description: string;
+  note: string;
+  clientName: string;
+  clientContact: string;
+}
